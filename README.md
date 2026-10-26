@@ -1,4 +1,4 @@
-# Day 08 — Private S3 + CloudFront OAC
+# Private S3 + CloudFront OAC
 
 Static website stored in a private S3 bucket and delivered through CloudFront with Origin Access Control (OAC). A small Lambda Function URL lets the browser stamp `content.json` updates and invalidate the edge cache.
 
