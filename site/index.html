@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Day 08 — S3 + CloudFront OAC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="atmosphere" aria-hidden="true"></div>
+
+  <main class="shell">
+    <header class="hero">
+      <p class="brand">Noufa's Edge Lab</p>
+      <h1>Private S3.<br />Public CloudFront.</h1>
+      <p class="lede">
+        Stored in a locked bucket. Served from the edge with Origin Access
+        Control—visitors never talk to S3 directly.
+      </p>
+      <a class="hero-cta" href="#demo">Try the cache demo</a>
+    </header>
+
+    <section class="flow-section" aria-labelledby="flow-title">
+      <h2 id="flow-title">Request flow</h2>
+      <p class="section-lede">How a browser hit becomes a signed origin fetch.</p>
+      <ol class="flow">
+        <li>
+          <span class="step" aria-hidden="true">01</span>
+          <div>
+            <strong>Browser</strong>
+            <span>Requests <code>https://…cloudfront.net/</code></span>
+          </div>
+        </li>
+        <li>
+          <span class="step" aria-hidden="true">02</span>
+          <div>
+            <strong>CloudFront</strong>
+            <span>Serves from cache, or fetches from S3</span>
+          </div>
+        </li>
+        <li>
+          <span class="step" aria-hidden="true">03</span>
+          <div>
+            <strong>OAC</strong>
+            <span>Signs the origin request with SigV4</span>
+          </div>
+        </li>
+        <li>
+          <span class="step" aria-hidden="true">04</span>
+          <div>
+            <strong>S3 policy</strong>
+            <span>Allows only this distribution</span>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <section class="notes" id="notes" aria-labelledby="notes-title">
+      <h2 id="notes-title" data-field="title"></h2>
+      <p class="notes-body" data-field="body"></p>
+    </section>
+
+    <section class="demo" id="demo" aria-labelledby="demo-title">
+      <h2 id="demo-title">Publish demo</h2>
+      <p>
+        Turn on <strong>Edit notes</strong>, change the lab notes above, then
+        <strong>Stamp</strong> to upload <code>content.json</code> to S3 and
+        invalidate CloudFront. The hero stays fixed in <code>index.html</code>.
+      </p>
+      <div class="demo-actions">
+        <button id="edit-btn" type="button" class="btn-secondary">Edit notes</button>
+        <button id="stamp-btn" type="button">Stamp (upload + invalidate)</button>
+        <p id="stamp-output" class="stamp" aria-live="polite">No publish yet.</p>
+      </div>
+    </section>
+
+    <footer>
+      <p>
+        Day 08 · S3 private origin · CloudFront OAC · editable
+        <code>content.json</code>
+      </p>
+    </footer>
+  </main>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

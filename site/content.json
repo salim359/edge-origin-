@@ -1,0 +1,4 @@
+{
+  "title": "Lab notes",
+  "body": "Edit this note in the browser, then Stamp to save it to S3 as content.json and invalidate CloudFront."
+}
