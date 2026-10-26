@@ -1,0 +1,155 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Day 08 — Static website on private S3, delivered via CloudFront with
+  Origin Access Control (OAC) and SigV4 signing. Includes a publish
+  Lambda so the browser can upload index.html and invalidate the cache.
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: python3.12
+    Architectures:
+      - x86_64
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: day08-static-website
+    Description: Prefix used in resource names and tags.
+
+Resources:
+  WebsiteBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ProjectName}-${AWS::AccountId}-${AWS::Region}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  CloudFrontOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub "${ProjectName}-oac"
+        Description: OAC for private S3 website origin (SigV4)
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub "${ProjectName} - private S3 origin via OAC"
+        DefaultRootObject: index.html
+        HttpVersion: http2
+        PriceClass: PriceClass_100
+        Origins:
+          - Id: S3WebsiteOrigin
+            DomainName: !GetAtt WebsiteBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt CloudFrontOriginAccessControl.Id
+            S3OriginConfig:
+              # Empty OriginAccessIdentity required when using OAC
+              OriginAccessIdentity: ""
+        DefaultCacheBehavior:
+          TargetOriginId: S3WebsiteOrigin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          # Managed CachingOptimized policy
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  WebsiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref WebsiteBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowCloudFrontServicePrincipalReadOnly
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub "${WebsiteBucket.Arn}/*"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}"
+
+  PublishFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: makefile
+    Properties:
+      FunctionName: !Sub "${ProjectName}-publish"
+      CodeUri: admin/
+      Handler: app.handler
+      Description: Upload content.json to S3 and create a CloudFront invalidation
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref WebsiteBucket
+          DISTRIBUTION_ID: !Ref CloudFrontDistribution
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+              Resource: !Sub "${WebsiteBucket.Arn}/content.json"
+            - Effect: Allow
+              Action:
+                - cloudfront:CreateInvalidation
+              Resource: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}"
+      FunctionUrlConfig:
+        AuthType: NONE
+        Cors:
+          AllowOrigins:
+            - !Sub "https://${CloudFrontDistribution.DomainName}"
+          AllowMethods:
+            - POST
+          AllowHeaders:
+            - content-type
+          AllowCredentials: false
+          MaxAge: 86400
+
+Outputs:
+  BucketName:
+    Description: Private S3 bucket holding the website objects
+    Value: !Ref WebsiteBucket
+
+  DistributionId:
+    Description: CloudFront distribution ID (use for invalidations)
+    Value: !Ref CloudFrontDistribution
+
+  DistributionDomainName:
+    Description: Public HTTPS hostname for the website
+    Value: !GetAtt CloudFrontDistribution.DomainName
+
+  WebsiteURL:
+    Description: Full URL of the deployed site
+    Value: !Sub "https://${CloudFrontDistribution.DomainName}"
+
+  OriginAccessControlId:
+    Description: CloudFront OAC ID used to sign S3 origin requests
+    Value: !Ref CloudFrontOriginAccessControl
+
+  PublishUrl:
+    Description: Function URL used by the Stamp button (PUT content.json + invalidate)
+    Value: !GetAtt PublishFunctionUrl.FunctionUrl

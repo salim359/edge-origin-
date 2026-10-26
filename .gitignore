@@ -1,0 +1,28 @@
+# SAM / CloudFormation
+.aws-sam/
+samconfig.toml
+packaged.yaml
+packaged-template.yaml
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+.env
+.env.*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
+
+# Logs and temp
+*.log
+tmp/
+temp/
